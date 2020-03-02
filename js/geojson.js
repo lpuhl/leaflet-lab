@@ -78,7 +78,7 @@ function createSequenceControls(features, map, years){
      // pass new attribute to update symbols
       updatePropSymbols(map, years[index], features);
       currentYear = years[index];
-      console.log('currentYear', currentYear);
+      // console.log('currentYear', currentYear);
    });
 
    // input listener for slider
@@ -89,7 +89,7 @@ function createSequenceControls(features, map, years){
       // pass new attribute to update symbols
       updatePropSymbols(map, years[index], features);
       currentYear = years[index];
-      console.log('currentYear', currentYear);
+      // console.log('currentYear', currentYear);
   });
 };
 
@@ -119,7 +119,6 @@ function createFilterControl(map, features, years){
   // //Step 5: click listener for buttons
    $('#less').click(function(){
      filter = 'less';
-     console.log('currentYear', currentYear);
      filterRents(map, filter, features);
   });
   $('#more').click(function(){
@@ -159,9 +158,7 @@ function filterRents(map, filter, features){
 
 //Step 10: Resize proportional symbols according to new year value from slider
 function updatePropSymbols(map, year, features){
-  console.log('YEAR', year);
   currentYear = year;
-  console.log('CURRENTYEAR', currentYear);
   updateLegend(map, year);
   // Each circle is its own layer.
   map.eachLayer(function(layer){
@@ -197,7 +194,6 @@ function createPopup(props, year, layer, radius) {
 function updateLegend(map, year) {
   var legendContent = "<p>Median Rent in " + year + "</p>";
   $('#temporal-legend').html(legendContent);
-  console.log('updateLegend');
   //get the max, mean, and min values as an object
   var circleValues = getCircleValues(map, year);
   for (var key in circleValues) {
@@ -222,7 +218,6 @@ function getCircleValues(map, year){
     map.eachLayer(function(layer){
         //get the rent value for the given year for each city
         if (layer.feature){
-          console.log('layer.feature', layer.feature);
             var attributeValue = Number(layer.feature.properties[year]);
 
             //test for min
@@ -298,7 +293,6 @@ function pointToLayerFx(feature, latlng, years) {
 
 //Step 3: Add circle markers for point features to the map
 function createPropSymbols(data, map, years) {
-  console.log('createPropSymbols running');
   //create a Leaflet GeoJSON layer and add it to the map
   citiesLayer = L.geoJson(data, {
       pointToLayer: function(feature, latlng) {
