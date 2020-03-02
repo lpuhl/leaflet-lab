@@ -1,5 +1,6 @@
-/* Map of GeoJSON data from MegaCities.geojson */
-
+var filter = 'default';
+var currentYear = 2011;
+var citiesLayer = null
 //function to instantiate the Leaflet map
 function createMap(){
     //create the map
@@ -21,21 +22,8 @@ function createMap(){
     getData(map);
 };
 
-// //added at Example 2.3 line 20...function to attach popups to each mapped feature
-// function onEachFeatureDemo(feature, layer) {
-//     //no property named popupContent; instead, create html string with all properties
-//     var popupContent = "";
-//     if (feature.properties) {
-//         //loop to add feature property names and values to html string
-//         for (var property in feature.properties){
-//             popupContent += "<p>" + property + ": " + feature.properties[property] + "</p>";
-//         }
-//         layer.bindPopup(popupContent);
-//     };
-// };
-
 //Step 1: Create new sequence controls
-function createSequenceControls(map, attributes){
+function createSequenceControls(features, map, years){
   var SequenceControl = L.Control.extend({
       options: {
           position: 'bottomleft'
@@ -43,7 +31,7 @@ function createSequenceControls(map, attributes){
       onAdd: function (map) {
           // create the control container div with a particular class name
           var container = L.DomUtil.create('div', 'sequence-control-container');
-
+          $(container).append('<p class="yearLabel">Year</p>');
           $(container).append('<input class="range-slider" type="range">');
           $(container).append('<button class="skip" id="reverse">Reverse</button>');
           $(container).append('<button class="skip" id="forward">Skip</button>');
@@ -88,7 +76,9 @@ function createSequenceControls(map, attributes){
      $('.range-slider').val(index);
      // console.log('incremented index', index);
      // pass new attribute to update symbols
-      updatePropSymbols(map, attributes[index]);
+      updatePropSymbols(map, years[index], features);
+      currentYear = years[index];
+      console.log('currentYear', currentYear);
    });
 
    // input listener for slider
@@ -97,35 +87,105 @@ function createSequenceControls(map, attributes){
       var index = $(this).val();
       // console.log('index:', index);
       // pass new attribute to update symbols
-      updatePropSymbols(map, attributes[index]);
+      updatePropSymbols(map, years[index], features);
+      currentYear = years[index];
+      console.log('currentYear', currentYear);
   });
 };
 
-//Step 10: Resize proportional symbols according to new attribute values
-function updatePropSymbols(map, attribute){
-  updateLegend(map, attribute);
-    map.eachLayer(function(layer){
-        if (layer.feature && layer.feature.properties[attribute]){
-          //access feature properties
-          var props = layer.feature.properties;
+function createFilterControl(map, features, years){
+  var FilterControl = L.Control.extend({
+      options: {
+          position: 'bottomleft' //'topright'
+      },
+      onAdd: function (map) {
+          // create the control container div with a particular class name
+          var container = L.DomUtil.create('div', 'filter-control-container switch-toggle switch-3 switch-candy tooltip' );
 
-          //update each feature's radius based on new attribute values
-          var radius = calcPropRadius(props[attribute]);
-          layer.setRadius(radius);
+          $(container).append('<input id="less" name="state-d" type="radio" checked="" /><label for="less"><span class="tooltiptext">Show cities with median rents of less than $1000</span>\< $1000</label>');
+          $(container).append('<input id="default" name="state-d" type="radio" checked="checked" /><label for="default" class="default"><span class="tooltiptext">Show all</span>Show All</label>');
+          $(container).append('<input id="more" name="state-d" type="radio"/><label for="more"><span class="tooltiptext">Show cities with median rents of $1000 or more</span>&ge; $1000</label>');
 
-          createPopup(props, attribute, layer, radius);
+          //kill any mouse event listeners on the map
+          $(container).on('mousedown dblclick', function(e){
+              L.DomEvent.stopPropagation(e);
+          });
 
-        };
-    });
+          return container;
+      }
+  });
+  map.addControl(new FilterControl());
+
+  // //Step 5: click listener for buttons
+   $('#less').click(function(){
+     filter = 'less';
+     console.log('currentYear', currentYear);
+     filterRents(map, filter, features);
+  });
+  $('#more').click(function(){
+    filter = 'more';
+    filterRents(map, filter, features);
+   });
+   $('#default').click(function(){
+     filter = 'clear';
+     filterRents(map, filter, features);
+  });
 };
 
-function createPopup(props, attribute, layer, radius) {
+function filterRents(map, filter, features){
+    if(map.hasLayer(citiesLayer)){
+      map.removeLayer(citiesLayer);
+    };
+    citiesLayer = L.geoJson(features, {
+        pointToLayer: function(feature, latlng) {
+          return pointToLayerFx(feature, latlng, currentYear);
+        },
+        filter: function(feature, layer) {
+          if (filter == 'less') {
+            return feature.properties[currentYear] < 1000;
+          }
+          else if (filter == 'more') {
+            return feature.properties[currentYear] >= 1000;
+          }
+          else if (filter = 'default') {
+            return feature.properties[currentYear]
+          }
+        }
+    });
+    citiesLayer.addTo(map);
+    updateLegend(map, currentYear)
+}
+
+
+//Step 10: Resize proportional symbols according to new year value from slider
+function updatePropSymbols(map, year, features){
+  console.log('YEAR', year);
+  currentYear = year;
+  console.log('CURRENTYEAR', currentYear);
+  updateLegend(map, year);
+  // Each circle is its own layer.
+  map.eachLayer(function(layer){
+      if (layer.feature && layer.feature.properties[year]){
+        //access feature properties
+        var props = layer.feature.properties;
+
+        //update each feature's radius based on new year values
+        var radius = calcPropRadius(props[year]);
+        layer.setRadius(radius);
+
+        createPopup(props, year, layer, radius);
+      };
+  });
+  filterRents(map, filter, features);
+};
+
+function createPopup(props, year, layer, radius) {
   //add city to popup content string
   var popupContent = "<p id='city'>" + props.City + "</p>";
 
   //add formatted attribute to panel content string
-  var year = attribute //.split("_")[1];
-  popupContent += "<p><b>Median rent in " + year + ":</b> $" + props[attribute];
+  var rentYear = year //.split("_")[1];
+  popupContent += "<p><b>Median rent in " + rentYear + ":</b> $" + props[year];
 
   //replace the layer popup
   layer.bindPopup(popupContent, {
@@ -134,12 +194,12 @@ function createPopup(props, attribute, layer, radius) {
   });
 };
 
-function updateLegend(map, attribute) {
-  var legendContent = "<p>Median Rent in " + attribute + "</p>";
+function updateLegend(map, year) {
+  var legendContent = "<p>Median Rent in " + year + "</p>";
   $('#temporal-legend').html(legendContent);
   console.log('updateLegend');
   //get the max, mean, and min values as an object
-  var circleValues = getCircleValues(map, attribute);
+  var circleValues = getCircleValues(map, year);
   for (var key in circleValues) {
     //get the radius
     var radius = calcPropRadius(circleValues[key]);
@@ -153,16 +213,17 @@ function updateLegend(map, attribute) {
   }
 }
 
-//Calculate the max, mean, and min values for a given attribute
-function getCircleValues(map, attribute){
+//Calculate the max, mean, and min values of rents for the given year
+function getCircleValues(map, year){
     //start with min at highest possible and max at lowest possible number
     var min = Infinity,
         max = -Infinity;
 
     map.eachLayer(function(layer){
-        //get the attribute value
+        //get the rent value for the given year for each city
         if (layer.feature){
-            var attributeValue = Number(layer.feature.properties[attribute]);
+          console.log('layer.feature', layer.feature);
+            var attributeValue = Number(layer.feature.properties[year]);
 
             //test for min
             if (attributeValue < min){
@@ -187,9 +248,16 @@ function getCircleValues(map, attribute){
     };
 };
 
-function pointToLayerFx(feature, latlng, attributes) {
-  // Assign the current attribute based on the first index of the attributes array
-  var attribute = attributes[0];
+function pointToLayerFx(feature, latlng, years) {
+  // console.log('pointToLayerFx running; year:', years);
+  if (typeof years == "object") {
+    // console.log(years);
+    // Assign the current attribute based on the first index of the years array
+    var year = years[0];
+  }
+  else {
+    var year = years;
+  }
   //check
   var markerOptions = {
      // radius: 8,
@@ -199,8 +267,8 @@ function pointToLayerFx(feature, latlng, attributes) {
      opacity: 1,
      fillOpacity: 0.8
   };
-  //Step 5: For each feature, determine its value for the selected attribute
-  var attValue = Number(feature.properties[attribute]);
+  //Step 5: For each feature (city), determine its value for the selected attribute
+  var attValue = Number(feature.properties[year]);
 
   //Step 6: Give each feature's circle marker a radius based on its attribute value
   markerOptions.radius = calcPropRadius(attValue);
@@ -208,7 +276,7 @@ function pointToLayerFx(feature, latlng, attributes) {
   //create circle marker layer
   var markerLayer = L.circleMarker(latlng, markerOptions);
 
-  createPopup(feature.properties, attribute, markerLayer, markerOptions.radius);
+  createPopup(feature.properties, year, markerLayer, markerOptions.radius);
   //event listeners to open popup on hover
 
   markerLayer.on({
@@ -229,13 +297,15 @@ function pointToLayerFx(feature, latlng, attributes) {
 };
 
 //Step 3: Add circle markers for point features to the map
-function createPropSymbols(data, map, attributes) {
+function createPropSymbols(data, map, years) {
+  console.log('createPropSymbols running');
   //create a Leaflet GeoJSON layer and add it to the map
-  L.geoJson(data, {
+  citiesLayer = L.geoJson(data, {
       pointToLayer: function(feature, latlng) {
-        return pointToLayerFx(feature, latlng, attributes);
+        return pointToLayerFx(feature, latlng, years);
       }
-  }).addTo(map);
+  });
+  citiesLayer.addTo(map);
 };
 
 //calculate the radius of each proportional symbol
@@ -250,8 +320,7 @@ function calcPropRadius(attValue) {
     return radius;
 };
 
-function createLegend (map, attributes) {
-  console.log('createLegend');
+function createLegend (map, years) {
   var LegendControl = L.Control.extend({
       options: {
           position: 'bottomright'
@@ -287,13 +356,13 @@ function createLegend (map, attributes) {
   });
   map.addControl(new LegendControl());
 
-  updateLegend(map, attributes[0]);
+  updateLegend(map, years[0]);
 };
 
 // build an attributes array from the data
 function processData(data){
-    //empty array to hold attributes
-    var attributes = [];
+    //empty array to hold years
+    var years = [];
 
     //properties of the first feature in the dataset
     var properties = data.features[0].properties;
@@ -302,12 +371,12 @@ function processData(data){
     for (var attribute in properties){
         //only take attributes with rent values
         if (attribute.indexOf("20") > -1){
-            attributes.push(attribute);
+            years.push(attribute);
         };
     };
     //check result
-    // console.log(attributes);
-    return attributes;
+    // console.log(years);
+    return years;
 };
 
 // function to retrieve the data and place it on the map
@@ -316,37 +385,12 @@ function getData(map){
     $.ajax("data/top15cities_rents.geojson", {
         dataType: "json",
         success: function(response){
-          var attributes = processData(response);
+          var years = processData(response);
           // call function to create proportional symbols
-          createPropSymbols(response, map, attributes);
-          createSequenceControls(map, attributes);
-          createLegend(map, attributes);
-          // var geoJsonLayer = L.geoJSON(response, {
-            // filter: function(feature, layer) {
-            //   return feature.properties.Pop_2015 > 20;
-            // },
-            // onEachFeature: onEachFeatureDemo,
-            // pointToLayer: function (feature, latlng) {
-            //   return L. circleMarker(latlng, geojsonMarkerOptions);
-            // }
-          // });
-          // //create a L.markerClusterGroup layer
-          // var markers = L.markerClusterGroup();
-          // //add geojson to marker cluster layer
-          // markers.addLayer(geoJsonLayer);
-          // //add marker cluster layer to map
-          // map.addLayer(markers);
-
-          // //create a Leaflet GeoJSON layer and add it to the map
-          // L.geoJSON(response, {
-          //   // filter: function(feature, layer) {
-          //   //   return feature.properties.Pop_2015 > 20;
-          //   // },
-          //   onEachFeature: onEachFeatureDemo,
-          //   pointToLayer: function (feature, latlng) {
-          //     return L. circleMarker(latlng, geojsonMarkerOptions);
-          //   }
-          // }).addTo(map);
+          createPropSymbols(response, map, years);
+          createSequenceControls(response, map, years);
+          createFilterControl(map, response, years);
+          createLegend(map, years);
         }
     });
 };

@@ -1,12 +1,22 @@
 /* Stylesheet by Liz Puhl, 2020 */
 
-h1, p, svg {
+h1, p, svg, label, .tooltiptext {
   font-family: 'Lato', sans-sans-serif;
   letter-spacing: 0.025em;
 }
 
-#header, #sources {
+p.yearLabel {
+  margin: 0;
+  padding: 2px 0 0 0;
+  line-height: 0;
+}
+
+#header, #sources, button {
   background-color: #669933;
+}
+
+button {
+  border-color: #669933
 }
 
 h1 {
@@ -15,6 +25,9 @@ h1 {
   margin: 0;
 }
 
+a {
+  text-decoration: none;
+}
 
 #sources p {
   color: white;
@@ -28,7 +41,7 @@ h1 {
 }
 
 #map {
-   height: 460px;
+   height: 510px;
    width: 100%;
    display: inline-block;
 }
@@ -91,4 +104,50 @@ h1 {
   top: -.5em;
   -ms-transform: translateX(-50%);
   transform: translateX(-50%);
+}
+
+
+/* Filter control */
+.switch-toggle {
+  width: auto;
+}
+.switch-toggle.switch-candy {
+  background-color: #669933;
+}
+.switch-toggle.switch-candy label {
+  text-shadow: none;
+}
+.switch-toggle label:not(.disabled) {
+  cursor: pointer;
+}
+
+
+/* Tooltip container */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+
+  /* Position the tooltip text - see examples below! */
+  position: absolute;
+  z-index: 1;
+  width: 120px;
+  bottom: 100%;
+  left: 10%;
+  margin-right: -60px; /* Use half of the width (120/2 = 60), to center the tooltip */
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip > label:hover .tooltiptext {
+  visibility: visible;
 }
